@@ -4,7 +4,8 @@ Module that processes the pygit commands
 """
 from argparse import Namespace, ArgumentParser
 import sys
-from gitpy import gitpy_data
+from gitpy.data import GitpyData
+from gitpy.tree import GitpyTree
 
 INIT_HELP = "Initialize a new gitpy repo"
 HASH_OBJECT_HELP = "Saves the content of a file to the objects database"
@@ -34,7 +35,7 @@ def parse_args() -> Namespace:
 
     # gitpy cat-file
     cat_file_parser = commands.add_parser("cat-file", help=CAT_FILE_HELP)
-    valid_modes = gitpy_data.MODES
+    valid_modes = GitpyData.MODES
     cat_file_parser.add_argument(
         "-m", "--mode", choices=valid_modes, help="Information to print"
     )
@@ -50,16 +51,30 @@ def parse_args() -> Namespace:
     )
     cat_file_parser.set_defaults(func=cat_file)
 
+    # gitpy write-tree
+    write_tree_parser = commands.add_parser(
+        "write-tree", help="Write a directory to the database"
+    )
+    write_tree_parser.set_defaults(func=write_tree)
+    write_tree_parser.add_argument("tree")
+
+    # gitpy read-tree
+    read_tree_parser = commands.add_parser(
+        "read-tree", help="read an object tree from the database and restore"
+    )
+    read_tree_parser.set_defaults(func=read_tree)
+    read_tree_parser.add_argument("tree")
+
     return parser.parse_args()
 
 
 def init(args) -> None:
     """Intializes a new repository by creating a `.gitpy` folder"""
-    is_init, current_directory = gitpy_data.init()
+    is_init, current_directory = GitpyData.init()
     if is_init:
         print(
             "Initialized empty gitpy repository in {}/{}".format(
-                current_directory, gitpy_data.GITPY_DIR
+                current_directory, GitpyData.GITPY_DIR
             )
         )
     else:
@@ -69,17 +84,29 @@ def init(args) -> None:
 def hash_object(args):
     """Hashes the content of a file and saves to the objects database"""
     # print(args.file, type(args))
-    file_content = gitpy_data.read_file(args.file)
-    print(gitpy_data.hash_object(file_content, "blob"))
+    file_content = GitpyData.read_file(args.file)
+    print(GitpyData.hash_object(file_content, "blob"))
 
 
 def cat_file(args):
     """Prints to the stdout the content or info of the object"""
     try:
-        gitpy_data.cat_file(args.mode, args.object)
+        mode = "blob" if args.mode is None else args.mode
+        GitpyData.cat_file(args.object, mode)
     except ValueError as error:
         sys.stdout.flush()
         sys.stdout.buffer.write("{}\n".format(str(error)).encode())
+
+
+def write_tree(args):
+    """Write a directory to the database"""
+    sha1 = GitpyTree.write_tree(args.tree)
+    sys.stdout.buffer.write("{}\n".format(str(sha1)).encode())
+
+
+def read_tree(args):
+    """Restore a directory to the database"""
+    GitpyTree.read_tree(args.tree)
 
 
 def main():

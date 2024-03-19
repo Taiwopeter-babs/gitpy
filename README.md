@@ -1,1 +1,1 @@
-# Implementation of git in python
+# An Implementation of git in Python
