@@ -127,11 +127,11 @@ class GitpyData:
         null_index = full_data.index(b"\x00")
         header = full_data[0:null_index]
 
-        obj_type, str_size = header.decode().split()
-        obj_size = int(str_size)
+        obj_type, obj_size = header.decode().split()
+
         data = full_data[null_index + 1 :]
 
-        assert obj_size == len(data), "Expected size ({}), got ({}) bytes".format(
+        assert int(obj_size) == len(data), "Expected size ({}), got ({}) bytes".format(
             obj_size, len(data)
         )
 

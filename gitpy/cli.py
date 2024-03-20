@@ -65,6 +65,11 @@ def parse_args() -> Namespace:
     read_tree_parser.set_defaults(func=read_tree)
     read_tree_parser.add_argument("tree")
 
+    # gitpy commit
+    commit_parser = commands.add_parser("commit", help="Adds a new commit")
+    commit_parser.add_argument("-m", "--message", required=True)
+    commit_parser.set_defaults(func=commit)
+
     return parser.parse_args()
 
 
@@ -107,6 +112,11 @@ def write_tree(args):
 def read_tree(args):
     """Restore a directory to the database"""
     GitpyTree.read_tree(args.tree)
+
+
+def commit(args):
+    """Adds a new commit"""
+    print(GitpyTree.commit(args.message))
 
 
 def main():

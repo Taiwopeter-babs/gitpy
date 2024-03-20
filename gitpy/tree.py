@@ -32,7 +32,7 @@ class GitpyTree:
             for entry in dir:
 
                 entry_path = "{}/{}".format(directory, entry.name)
-                if GitpyTree.is_ignored(entry_path):
+                if GitpyTree.__is_ignored(entry_path):
                     continue
 
                 # save each file to the object database
@@ -98,13 +98,56 @@ class GitpyTree:
     @staticmethod
     def read_tree(tree_sha1):
         """Gets the content of a tree object and write them into the working directory"""
+        # empty directory
+        GitpyTree.__empty_current_directory()
         for obj_path, obj_sha1 in GitpyTree.get_tree(tree_sha1, base_path="./").items():
-            # replace the directory
             os.makedirs(os.path.dirname(obj_path), exist_ok=True)
             GitpyData.write_file(obj_path, GitpyData.read_object(obj_sha1)[1])
 
     @staticmethod
-    def is_ignored(path: str) -> bool:
+    def commit(message: str):
+        """
+        Creates a new commit object and saves to the object database.
+        The first lines will be key-values. An empty line marks the end of the key-values, then
+        the commit message.
+
+        The key-values:
+        - `obj_type obj_sha1`
+        - `author name`
+        - `time YYYY-MM-DDTHH:MM:SS`
+        """
+        commit = "{} {}\n".format("tree", GitpyTree.write_tree())
+        commit += "\n{}\n".format(message)
+
+        return GitpyData.hash_object(commit.encode(), "commit")
+
+    @staticmethod
+    def __empty_current_directory():
+        """Delete the current directory with files and subdirectories within"""
+        for dirpath, dirnames, filenames in os.walk(".", topdown=False):
+
+            # remove files in the directory
+            for filename in filenames:
+                # print(dirpath, filename)
+                path = os.path.relpath("{}/{}".format(dirpath, filename))
+                # print(path)
+                if GitpyTree.__is_ignored(path) or not os.path.isfile(path):
+                    continue
+                os.remove(path)
+
+            # remove directories
+            for dirname in dirnames:
+                path = os.path.relpath("{}/{}".format(dirpath, dirname))
+                if GitpyTree.__is_ignored(path) or os.path.isfile(path):
+                    continue
+                try:
+                    os.rmdir(path)
+                except (OSError, FileNotFoundError):
+                    pass
+
+    @staticmethod
+    def __is_ignored(path: str) -> bool:
+        """Checks if a file or directory is ignored"""
         to_be_ignored = [GitpyData.GITPY_DIR, "gitpyvenv", ".git"]
         ignored = any(map(lambda p: p in path.split("/"), to_be_ignored))
 
