@@ -4,11 +4,17 @@ Tree handler module
 
 import os
 from typing import Dict, List, Tuple
+from collections import namedtuple
+import operator
+import itertools
+
 from gitpy.data import GitpyData
 
 
 class GitpyTree:
     """Tree class"""
+
+    CommitType = namedtuple("Commit", ["tree", "parent", "message"])
 
     def __init__(self) -> None:
         pass
@@ -105,7 +111,7 @@ class GitpyTree:
             GitpyData.write_file(obj_path, GitpyData.read_object(obj_sha1)[1])
 
     @staticmethod
-    def commit(message: str):
+    def commit(message: str) -> str:
         """
         Creates a new commit object and saves to the object database.
         The first lines will be key-values. An empty line marks the end of the key-values, then
@@ -117,9 +123,49 @@ class GitpyTree:
         - `time YYYY-MM-DDTHH:MM:SS`
         """
         commit = "{} {}\n".format("tree", GitpyTree.write_tree())
+
+        # Add the parent commit if present
+        HEAD = GitpyData.get_HEAD()
+        if HEAD:
+            commit += "parent {}\n".format(HEAD)
+
         commit += "\n{}\n".format(message)
 
-        return GitpyData.hash_object(commit.encode(), "commit")
+        commit_sha1 = GitpyData.hash_object(commit.encode(), "commit")
+
+        # write commit sha1 to HEAD file
+        GitpyData.set_HEAD(commit_sha1)
+
+        return commit_sha1
+
+    @staticmethod
+    def get_commit(commit_sha1: str) -> CommitType:
+        """Gets a commit object from the database and parses it to a
+        namedtuple `Commit` type
+        """
+        parent = None  # commits can have parents or not
+
+        # get only the object
+        commit = GitpyData.read_object(commit_sha1)[1].decode()
+
+        commit_lines = iter(commit.splitlines())
+
+        for line in itertools.takewhile(operator.truth, commit_lines):
+            key, value = line.strip().split(" ", 1)
+
+            assert key in [
+                "tree",
+                "parent",
+            ], "Unknown field, {}".format(key)
+
+            if key == "tree":
+                tree = value
+            elif key == "parent":
+                parent = value
+
+        message = "\n".join(commit_lines)
+
+        return GitpyTree.CommitType(tree=tree, parent=parent, message=message)
 
     @staticmethod
     def __empty_current_directory():

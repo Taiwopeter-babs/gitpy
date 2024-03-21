@@ -3,7 +3,10 @@
 Module that processes the pygit commands
 """
 from argparse import Namespace, ArgumentParser
+from contextlib import AsyncExitStack
 import sys
+import textwrap
+
 from gitpy.data import GitpyData
 from gitpy.tree import GitpyTree
 
@@ -70,6 +73,11 @@ def parse_args() -> Namespace:
     commit_parser.add_argument("-m", "--message", required=True)
     commit_parser.set_defaults(func=commit)
 
+    # gitpy log
+    log_parser = commands.add_parser("log", help="Logs the commit to the screen")
+    log_parser.set_defaults(func=log_commit)
+    log_parser.add_argument("commit_sha1", nargs="?")
+
     return parser.parse_args()
 
 
@@ -117,6 +125,24 @@ def read_tree(args):
 def commit(args):
     """Adds a new commit"""
     print(GitpyTree.commit(args.message))
+
+
+def log_commit(args):
+    """Logs a commit"""
+    commit_sha1 = args.commit_sha1 if args.commit_sha1 else GitpyData.get_HEAD()
+
+    while commit_sha1:
+        try:
+            commit = GitpyTree.get_commit(commit_sha1)
+
+        except AssertionError:
+            return
+
+        print("commit {}\n".format(commit_sha1))
+        print(textwrap.indent(commit.message, "    "))
+        print()
+
+        commit_sha1 = commit.parent
 
 
 def main():

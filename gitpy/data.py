@@ -4,7 +4,7 @@ Data module for gitpy
 """
 import hashlib
 import os
-from typing import Tuple
+from typing import Tuple, Union
 import zlib
 import sys
 
@@ -13,6 +13,7 @@ class GitpyData:
 
     GITPY_DIR = ".gitpy"
     __GITPY_OBJECTS_DATABASE = ".gitpy/objects"
+    GITPY_HEAD = "{}/HEAD".format(GITPY_DIR)
     MODES = ["commit", "blob", "size"]
     OBJECT_TYPES = MODES[0:2] + ["tree"]
 
@@ -163,3 +164,17 @@ class GitpyData:
             )
 
         return os.path.join(object_dir, objects[0])
+
+    @staticmethod
+    def set_HEAD(sha1):
+        """Record hash of commit to HEAD"""
+        with open(GitpyData.GITPY_HEAD, "w") as head_file:
+            head_file.write(sha1)
+
+    @staticmethod
+    def get_HEAD() -> Union[str, None]:
+        """Get HEAD file"""
+        if not os.path.isfile(GitpyData.GITPY_HEAD):
+            return
+        with open(GitpyData.GITPY_HEAD, "r") as head_file:
+            return head_file.read().strip()
